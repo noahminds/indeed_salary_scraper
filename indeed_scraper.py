@@ -1,9 +1,10 @@
+import csv
+import os
 import asyncio
 from pyppeteer import launch
 
-async def scrape_indeed(job_title: str, search_location: str):
-    # Launch the browser instance
-    browser = await launch(headless=False)
+async def scrape_indeed(browser, job_title: str, search_location: str, top_company_writer):
+    # Open a new page (tab) in the browser
     page = await browser.newPage()
 
     # Go to indeed.com
@@ -25,12 +26,14 @@ async def scrape_indeed(job_title: str, search_location: str):
     # Wait for the next page to load
     await page.waitForNavigation()
 
-    # Collect the job listing content from the results into a list
-    job_listings = await page.querySelectorAll('.resultContent')
-
     # Extract "Average Base Salary"
     avg_base_salary_element = await page.querySelector('div[data-testid = "avg-salary-value"]')
     avg_base_salary = await page.evaluate('(element) => element.textContent', avg_base_salary_element)
+
+    # Append the average base salary to the CSV file
+    with open('average_base_salary.csv', 'a', newline='', encoding='utf-8') as file:
+        avg_base_salary_writer = csv.writer(file)
+        avg_base_salary_writer.writerow([job_title, search_location, avg_base_salary])
 
     # Fully expand the list of "Top Companies..." (max expansions = 3, which gives 20 results). If there
     # are fewer than 20 results, the button should not be toggled 3 times.
@@ -69,21 +72,53 @@ async def scrape_indeed(job_title: str, search_location: str):
         salaries_reported_element = await company.querySelector('a[data-tn-element="top-paying-company-tagline-salaries"]')
         salaries_reported = await page.evaluate('(element) => element.textContent', salaries_reported_element)
 
-        print({
-            'Company Name': company_name,
-            'Aggregate Rating': rating,
-            'Average Salary': avg_salary,
-            'Number of Reviews': num_reviews,
-            'Salaries Reported': salaries_reported,
-        })
+        # Append the company details to the CSV file
+        top_company_writer.writerow([job_title, search_location, company_name, rating, avg_salary, num_reviews, salaries_reported])
 
-    # Close the browser
-    await browser.close()
+    # Close the page after the scraping task is done
+    await page.close()
+    
 
+async def main():
+    # Launch a new browser window
+    browser = await launch(headless=False)
 
-def main():
-    asyncio.get_event_loop().run_until_complete(scrape_indeed('Consultant', 'Chicago, IL'))
+    try:
+        # Read job titles and locations from a CSV file called 'searches.csv'
+        with open('searches.csv', 'r', newline='', encoding='utf-8') as file:
+            reader = csv.reader(file)
+            inputs = list(reader)
+        
+        # Check if the CSV file exists to decide on writing headers
+        avg_base_salary_file_exists = os.path.isfile('average_base_salary.csv')
+        top_companies_file_exists = os.path.isfile('top_companies.csv')
+
+        # Open a CSV file to store the average base salary associated with each search
+        with open('average_base_salary.csv', 'a', newline='', encoding='utf-8') as file:
+            writer = csv.writer(file)
+
+            # Write the headers if the file does not yet exist
+            if not avg_base_salary_file_exists:
+                writer.writerow(['Job Title', 'Search Location', 'Average Base Salary'])
+
+        
+        with open('top_companies.csv', 'a', newline='', encoding='utf-8') as file:
+            top_company_writer = csv.writer(file)
+
+            # Write the headers if the file does not yet exist
+            if not top_companies_file_exists:
+                top_company_writer.writerow(['Job Title', 'Search Location', 'Company Name', 'Aggregate Rating', 'Average Salary', 'Number of Reviews', 'Salaries Reported'])
+
+            for job_title, search_location in inputs:
+                await scrape_indeed(browser, job_title, search_location, top_company_writer)
+
+    except Exception as e:
+        print(f"An error occurred during scraping: {e}")
+
+    finally:
+        # Close the browser after all tasks are done
+        await browser.close()
 
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
