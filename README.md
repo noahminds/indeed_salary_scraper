@@ -32,8 +32,10 @@ python indeed_scraper.py
 ```
 
 2. **Output**: The script will create or append to two CSV files:
-- `base_salary.csv`: Contains the average base salary for each job title and location.
-- `top_companies.csv`: Contains information on the top companies for each job title and location.
+- `base_salary.csv`: Contains aggregated salary information for each job 
+title and location specified by the user in `searches.csv`.
+- `top_companies.csv`: Contains information on the top companies for each 
+job title and location specified by the user in `searches.csv`.
 
 ## Notes
 - **Headless Mode**: The script is designed to support headless operation for enhanced performance and resource efficiency during scraping tasks. However, no successful operation in headless mode has been observed yet. Users may experience better stability and visual debugging capabilities by running the scraper with the headless option set to `False`. This adjustment allows for real-time monitoring of the scraping process but might require additional resources. I am working on improving the headless mode compatibility and hope to resolve this limitation in future updates.
