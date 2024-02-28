@@ -3,6 +3,24 @@ import os
 import asyncio
 from pyppeteer import launch
 
+async def extract_salary_by_label(page, label):
+    '''
+    
+    '''
+    # Construct an XPath expression to find a span containing specific text, then select its parent
+    xpath_expression = f"//span[contains(text(), '{label}')]/parent::*"
+    
+    # Execute the XPath query, which returns a list of matching ElementHandles
+    elements = await page.xpath(xpath_expression)
+    
+    # Assuming the first match is the desired one, extract its text content
+    if elements:
+        salary = await page.evaluate('(element) => element.textContent', elements[0])
+        return salary.split()[-1] # Assuming salary is the last word in the textContent
+    else:
+        # If no elements were found, raise a ValueError
+        raise ValueError(f"No element with label '{label}' found on the page")
+
 async def scrape_indeed(browser, job_title: str, search_location: str, top_company_writer):
     # Open a new page (tab) in the browser
     page = await browser.newPage()
@@ -26,14 +44,28 @@ async def scrape_indeed(browser, job_title: str, search_location: str, top_compa
     # Wait for the next page to load
     await page.waitForNavigation()
 
-    # Extract "Average Base Salary"
+    # Extract aggregated salary information including low, average, and high base salaries
     avg_base_salary_element = await page.querySelector('div[data-testid = "avg-salary-value"]')
     avg_base_salary = await page.evaluate('(element) => element.textContent', avg_base_salary_element)
 
+    # As low and high base salary content is not stored in unique div classes, we need to use 
+    # XPath to extract them. This is implemented in the extract_salary_by_label function.
+    try:
+        low_base_salary = await extract_salary_by_label(page, 'Low')
+    except ValueError as e:
+        low_base_salary = 'Error: Not found'
+        print(e) # Log the error message
+
+    try:
+        high_base_salary = await extract_salary_by_label(page, 'High')
+    except ValueError as e:
+        high_base_salary = 'Error: Not found'
+        print(e) # Log the error message
+
     # Append the average base salary to the CSV file
-    with open('average_base_salary.csv', 'a', newline='', encoding='utf-8') as file:
+    with open('base_salary.csv', 'a', newline='', encoding='utf-8') as file:
         avg_base_salary_writer = csv.writer(file)
-        avg_base_salary_writer.writerow([job_title, search_location, avg_base_salary])
+        avg_base_salary_writer.writerow([job_title, search_location, low_base_salary, avg_base_salary, high_base_salary])
 
     # Fully expand the list of "Top Companies..." (max expansions = 3, which gives 20 results). If there
     # are fewer than 20 results, the button should not be toggled 3 times.
@@ -90,16 +122,16 @@ async def main():
             inputs = list(reader)
         
         # Check if the CSV file exists to decide on writing headers
-        avg_base_salary_file_exists = os.path.isfile('average_base_salary.csv')
+        avg_base_salary_file_exists = os.path.isfile('base_salary.csv')
         top_companies_file_exists = os.path.isfile('top_companies.csv')
 
         # Open a CSV file to store the average base salary associated with each search
-        with open('average_base_salary.csv', 'a', newline='', encoding='utf-8') as file:
+        with open('base_salary.csv', 'a', newline='', encoding='utf-8') as file:
             writer = csv.writer(file)
 
             # Write the headers if the file does not yet exist
             if not avg_base_salary_file_exists:
-                writer.writerow(['Job Title', 'Search Location', 'Average Base Salary'])
+                writer.writerow(['Job Title', 'Search Location', 'Low Base Salary', 'Average Base Salary', 'High Base Salary'])
 
         
         with open('top_companies.csv', 'a', newline='', encoding='utf-8') as file:

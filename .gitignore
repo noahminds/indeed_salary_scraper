@@ -1,6 +1,9 @@
 # CSV files
-average_base_salary.csv
+base_salary.csv
 top_companies.csv
+
+# System files
+.DS_Store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
