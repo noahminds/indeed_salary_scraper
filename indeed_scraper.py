@@ -5,7 +5,14 @@ from pyppeteer import launch
 
 async def extract_salary_by_label(page, label):
     '''
+    Extracts the salary information from the page based on the label provided.
+
+    Arguments:
+        page: The page object to extract the salary information from
+        label: The label to search for in the page
     
+    Returns:
+        The salary text content associated with the label
     '''
     # Construct an XPath expression to find a span containing specific text, then select its parent
     xpath_expression = f"//span[contains(text(), '{label}')]/parent::*"
@@ -22,6 +29,19 @@ async def extract_salary_by_label(page, label):
         raise ValueError(f"No element with label '{label}' found on the page")
 
 async def scrape_indeed(browser, job_title: str, search_location: str, top_company_writer):
+    '''
+    Scrapes the indeed.com website for salary information and top companies hiring for a specific job title
+    in a specific location. The scraped data is then written to two CSV files.
+    
+    Arguments:
+        browser: The browser object to use for scraping
+        job_title: The job title to search for
+        search_location: The location to search for the job title
+        top_company_writer: The CSV writer object to write the top companies data to
+        
+    Returns:
+        None
+    '''
     # Open a new page (tab) in the browser
     page = await browser.newPage()
 
