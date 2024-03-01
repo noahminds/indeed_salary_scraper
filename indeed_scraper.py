@@ -45,91 +45,106 @@ async def scrape_indeed(browser, job_title: str, search_location: str, top_compa
     # Open a new page (tab) in the browser
     page = await browser.newPage()
 
-    # Go to indeed.com
-    await page.goto('https://www.indeed.com/career/salaries')
-
-    # Wait for the input field elements to load
-    await page.waitForSelector('#input-title-autocomplete')
-    await page.waitForSelector('#input-location-autocomplete-localized')
-
-    # Type in the search query
-    await page.type('#input-title-autocomplete', job_title) # Type in the job title
-    await page.click('#input-location-autocomplete-localized', clickCount=3) # Focus the default location input
-    await page.keyboard.press('Backspace')  # Clear the input
-    await page.type('#input-location-autocomplete-localized', search_location) # Type in the location
-
-    # Click the search button
-    await page.click('button[type="submit"]')
-
-    # Wait for the next page to load
-    await page.waitForNavigation()
-
-    # Extract aggregated salary information including low, average, and high base salaries
-    avg_base_salary_element = await page.querySelector('div[data-testid = "avg-salary-value"]')
-    avg_base_salary = await page.evaluate('(element) => element.textContent', avg_base_salary_element)
-
-    # As low and high base salary content is not stored in unique div classes, we need to use 
-    # XPath to extract them. This is implemented in the extract_salary_by_label function.
     try:
-        low_base_salary = await extract_salary_by_label(page, 'Low')
-    except ValueError as e:
-        low_base_salary = 'Error: Not found'
-        print(e) # Log the error message
+        # Go to indeed.com/career/salaries
+        #***** Replace the URL with the country-specific version of Indeed for searches outside of US geographies. *****#
+        await page.goto('https://www.indeed.com/career/salaries')
 
-    try:
-        high_base_salary = await extract_salary_by_label(page, 'High')
-    except ValueError as e:
-        high_base_salary = 'Error: Not found'
-        print(e) # Log the error message
+        # Wait for the input field elements to load
+        await page.waitForSelector('#input-title-autocomplete')
+        await page.waitForSelector('#input-location-autocomplete-localized')
 
-    # Append the average base salary to the CSV file
-    with open('base_salary.csv', 'a', newline='', encoding='utf-8') as file:
-        avg_base_salary_writer = csv.writer(file)
-        avg_base_salary_writer.writerow([job_title, search_location, low_base_salary, avg_base_salary, high_base_salary])
+        # Type in the search query
+        await page.type('#input-title-autocomplete', job_title) # Type in the job title
+        await page.click('#input-location-autocomplete-localized', clickCount=3) # Focus the default location input
+        await page.keyboard.press('Backspace')  # Clear the input
+        await page.type('#input-location-autocomplete-localized', search_location) # Type in the location
 
-    # Fully expand the list of "Top Companies..." (max expansions = 3, which gives 20 results). If there
-    # are fewer than 20 results, the button should not be toggled 3 times.
-    for _ in range(3):
-        expand_button_element = await page.querySelector('button[data-a11y-tabtest="top-paying-load-more-button"]')
+        # Click the search button
+        await page.click('button[type="submit"]')
 
-        # If the list is already fully expanded, break
-        if await page.evaluate('(element) => element.textContent', expand_button_element) == 'Show less':
-            break
+        # Wait for the next page to load
+        await page.waitForNavigation()
 
-        # Click the button to expand the list
-        await expand_button_element.click()
+        # Check if the search returned the expected results
+        search_result_element = await page.querySelector('div[data-testid="salary-information"] div h1')
+        search_result = await page.evaluate('(element) => element.textContent', search_result_element)
 
-    # import pdb; pdb.set_trace()
-    # Select all list items from "Top Companies..." list and extract company name, aggregate rating, 
-    # average salary, number of reviews, and number of salaries reported from each
-    top_company_listings = await page.querySelectorAll('li[data-tn-element="ranked-list-item"]')
-    for company in top_company_listings:
-        # Extract the company name
-        company_name_element = await company.querySelector('a[data-tn-element="top-paying-company-acme"]')
-        company_name = await page.evaluate('(element) => element.textContent', company_name_element)
+        # If the search does not contain the job title and location, raise an error
+        if job_title.lower() not in search_result.lower() or search_location.lower() not in search_result.lower():
+            raise ValueError(f"Search did not return the expected results. Found: '{search_result}'")
 
-        # Extract the aggregate rating
-        rating_element = await company.querySelector('a[data-tn-element="top-paying-company-reviews"] span')
-        rating = await page.evaluate('(element) => element.textContent', rating_element) if rating_element else 'No rating'
+        # Extract aggregated salary information including low, average, and high base salaries
+        avg_base_salary_element = await page.querySelector('div[data-testid = "avg-salary-value"]')
+        avg_base_salary = await page.evaluate('(element) => element.textContent', avg_base_salary_element)
 
-        # Extract the average salary
-        avg_salary_element = await company.querySelector('strong[data-testid="top-company-salary"]')
-        avg_salary = await page.evaluate('(element) => element.textContent', avg_salary_element)
+        # As low and high base salary content is not stored in unique div classes, we need to use 
+        # XPath to extract them. This is implemented in the extract_salary_by_label function.
+        try:
+            low_base_salary = await extract_salary_by_label(page, 'Low')
+        except ValueError as e:
+            low_base_salary = 'Error: Not found'
+            print(f"Warning: {e} for '{job_title} | {search_location}'") # Log the error message
 
-        # Extract the number of reviews
-        num_reviews_element = await company.querySelector('a[data-tn-element="top-paying-company-tagline-reviews"]')
-        num_reviews = await page.evaluate('(element) => element.textContent', num_reviews_element)
+        try:
+            high_base_salary = await extract_salary_by_label(page, 'High')
+        except ValueError as e:
+            high_base_salary = 'Error: Not found'
+            print(f"Warning: {e} for '{job_title} | {search_location}'") # Log the error message
+
+        # Append the average base salary to the CSV file
+        with open('base_salary.csv', 'a', newline='', encoding='utf-8') as file:
+            avg_base_salary_writer = csv.writer(file)
+            avg_base_salary_writer.writerow([job_title, search_location, low_base_salary, avg_base_salary, high_base_salary])
+        import pdb; pdb.set_trace()
+        # Fully expand the list of "Top Companies..." (max expansions = 3, which gives 20 results). If there
+        # are fewer than 20 results, the button should not be toggled 3 times.
+        for _ in range(3):
+            expand_button_element = await page.querySelector('button[data-a11y-tabtest="top-paying-load-more-button"]')
+
+            # If the list is already fully expanded, break
+            if await page.evaluate('(element) => element.textContent', expand_button_element) == 'Show less':
+                break
+
+            # Click the button to expand the list
+            await expand_button_element.click()
+
+        # Select all list items from "Top Companies..." list and extract company name, aggregate rating, 
+        # average salary, number of reviews, and number of salaries reported from each list item.
+        top_company_listings = await page.querySelectorAll('li[data-tn-element="ranked-list-item"]')
+
+        # If no top company listings are found, raise a ValueError
+        if not top_company_listings:
+            raise ValueError("No top company listings found on the page")
         
-        # Extract the number of salaries reported
-        salaries_reported_element = await company.querySelector('a[data-tn-element="top-paying-company-tagline-salaries"]')
-        salaries_reported = await page.evaluate('(element) => element.textContent', salaries_reported_element)
+        for company in top_company_listings:
+            # Extract the company name
+            company_name_element = await company.querySelector('a[data-tn-element="top-paying-company-acme"]')
+            company_name = await page.evaluate('(element) => element.textContent', company_name_element)
 
-        # Append the company details to the CSV file
-        top_company_writer.writerow([job_title, search_location, company_name, rating, avg_salary, num_reviews, salaries_reported])
+            # Extract the aggregate rating
+            rating_element = await company.querySelector('a[data-tn-element="top-paying-company-reviews"] span')
+            rating = await page.evaluate('(element) => element.textContent', rating_element) if rating_element else 'No rating'
 
-    # Close the page after the scraping task is done
-    await page.close()
-    
+            # Extract the average salary
+            avg_salary_element = await company.querySelector('strong[data-testid="top-company-salary"]')
+            avg_salary = await page.evaluate('(element) => element.textContent', avg_salary_element)
+
+            # Extract the number of reviews
+            num_reviews_element = await company.querySelector('a[data-tn-element="top-paying-company-tagline-reviews"]')
+            num_reviews = await page.evaluate('(element) => element.textContent', num_reviews_element)
+            
+            # Extract the number of salaries reported
+            salaries_reported_element = await company.querySelector('a[data-tn-element="top-paying-company-tagline-salaries"]')
+            salaries_reported = await page.evaluate('(element) => element.textContent', salaries_reported_element)
+
+            # Append the company details to the CSV file
+            top_company_writer.writerow([job_title, search_location, company_name, rating, avg_salary, num_reviews, salaries_reported])
+
+    finally:
+        # Close the page after the scraping task is complete or an error occurs
+        await page.close()
+        
 
 async def main():
     # Launch a new browser window
@@ -165,11 +180,10 @@ async def main():
                 try:
                     await scrape_indeed(browser, job_title, search_location, top_company_writer)
                 except Exception as e:
-                    print(f"An error occured during scraping: {e}\n")
-                    print(f"'{job_title}, {search_location}' was not a valid search.")
+                    print(f"An error occured while scraping the page for '{job_title} | {search_location}': {e}")
 
     except Exception as e:
-        print(f"An error occurred during scraping: {e}")
+        print(f"An error occurred while executing the program: {e}")
 
     finally:
         # Close the browser after all tasks are done
