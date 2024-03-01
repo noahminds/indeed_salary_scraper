@@ -162,7 +162,11 @@ async def main():
                 top_company_writer.writerow(['Job Title', 'Search Location', 'Company Name', 'Aggregate Rating', 'Average Salary', 'Number of Reviews', 'Salaries Reported'])
 
             for job_title, search_location in inputs:
-                await scrape_indeed(browser, job_title, search_location, top_company_writer)
+                try:
+                    await scrape_indeed(browser, job_title, search_location, top_company_writer)
+                except Exception as e:
+                    print(f"An error occured during scraping: {e}\n")
+                    print(f"'{job_title}, {search_location}' was not a valid search.")
 
     except Exception as e:
         print(f"An error occurred during scraping: {e}")
