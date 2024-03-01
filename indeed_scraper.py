@@ -96,7 +96,7 @@ async def scrape_indeed(browser, job_title: str, search_location: str, top_compa
         with open('base_salary.csv', 'a', newline='', encoding='utf-8') as file:
             avg_base_salary_writer = csv.writer(file)
             avg_base_salary_writer.writerow([job_title, search_location, low_base_salary, avg_base_salary, high_base_salary])
-        import pdb; pdb.set_trace()
+
         # Fully expand the list of "Top Companies..." (max expansions = 3, which gives 20 results). If there
         # are fewer than 20 results, the button should not be toggled 3 times.
         for _ in range(3):
