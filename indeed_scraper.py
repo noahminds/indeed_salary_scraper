@@ -101,9 +101,9 @@ async def scrape_indeed(browser, job_title: str, search_location: str, top_compa
         # are fewer than 20 results, the button should not be toggled 3 times.
         for _ in range(3):
             expand_button_element = await page.querySelector('button[data-a11y-tabtest="top-paying-load-more-button"]')
-
-            # If the list is already fully expanded, break
-            if await page.evaluate('(element) => element.textContent', expand_button_element) == 'Show less':
+            
+            # If the expand button is not found or the list is already fully expanded, break
+            if not expand_button_element or await page.evaluate('(element) => element.textContent', expand_button_element) == 'Show less':
                 break
 
             # Click the button to expand the list
