@@ -8,6 +8,7 @@ This project offers a powerful tool for scraping salary data from Indeed, includ
 - **Aggregated Base Salary Scraping**: Retrieves aggregated salary information including the low, average, and high base salaries for specified job titles and locations from Indeed, offering insights into salary expectations across different roles and areas.
 - **Top Company Information Extraction**: Gathers detailed information on top companies for each job title and location, including company name, aggregate rating, average salary, number of reviews, and salaries reported, helping identify leading employers in that role and area.
 - **CSV Data Export**: Outputs scraped data into CSV files for each search query, facilitating easy access, analysis, and storage of the results. Two CSV files are generated: one for aggregated base salaries (`base_salary.csv`) and another for top companies information (`top_companies.csv`).
+- **Error Handling and Logging**: Incorporates robust error handling to manage and log invalid searches and unexpected issues, ensuring the scraper continues to process valid queries without crashing.
 
 ## Requirements
 - Python 3.7+
@@ -51,6 +52,7 @@ job title and location specified by the user in `searches.csv`.
     This format allows the scraper to accurately process each job title and location pair.
 
 - **Concurrency**: While the current version of the scraper does not implement concurrency, future updates may include asynchronous processing to enhance efficiency and speed, particularly when handling multiple search queries.
+- **Invalid Searches**: The scraper logs invalid searches to the console and continues processing valid queries. If you encounter an invalid search, check the console output for details and try reformulating the search query in `searches.csv` to ensure it adheres to the expected format. Highly specific job titles may result in invalid searches, so consider reformulating to broader terms or alternative job titles if issues arise.
 
 ## Consider Legal and Ethical Considerations
 Understanding the legal and ethical implications of web scraping is paramount. This script is a powerful tool for quickly gathering salary information across different job titles and locations. It's ideal for job seekers, researchers, or anyone interested in labor market trends. Remember to use it responsibly and consider Indeed's terms of service regarding automated access and data usage.
